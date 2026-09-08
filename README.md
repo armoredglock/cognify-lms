@@ -12,7 +12,7 @@
 | **2** | **Bibek Tripathy** | [@bibek-tripathy](https://github.com/bibek-tripathy) | **Video Analytics & Redis Playback Cache** | Redis caching for video playback heartbeats, durable sync to `LessonProgress`, watch-time analytics. |
 | **3** | **Swati Saumya** | [@swatisaumya](https://github.com/swatisaumya) | **Assessment Engine & Redis Timed Sessions** | Quiz/Question schema, Redis TTL session key management for timed exams, atomic submission engine. |
 | **4** | **Meheli Ghosh** | [@meheli-ghosh](https://github.com/meheli-ghosh) | **Gamification & Certification Engine** | Real-time Leaderboards with Redis Sorted Sets (`ZSET`), SQL aggregation gradebooks, certificate hashes. |
-| **5** | **Sagnik Datta** *(Co-Lead)* | [@armoredglock](https://github.com/armoredglock) | **AI Assessment Generator & Frontend UI** | AI schema for generated MCQs/flashcards, transcript processing pipeline, React student dashboard. |
+| **5** | **Sagnik Datta** | [@armoredglock](https://github.com/armoredglock) | **AI Assessment Generator & Frontend UI** | AI schema for generated MCQs/flashcards, transcript processing pipeline, React student dashboard. |
 
 *Co-Leads (@armoredglock and @saanvi-singhal) act as dual codeowners to facilitate continuous PR review and testing.*
 
