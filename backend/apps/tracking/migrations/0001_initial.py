@@ -25,7 +25,7 @@ class Migration(migrations.Migration):
                 ('student', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='lesson_progress', to=settings.AUTH_USER_MODEL)),
             ],
             options={
-                'indexes': [models.Index(fields=['student', 'lesson'], name='tracking_le_student_d88f91_idx')],
+                'indexes': [models.Index(fields=['student', 'lesson'], name='tracking_le_student_a53a09_idx')],
                 'unique_together': {('student', 'lesson')},
             },
         ),
