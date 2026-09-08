@@ -1,0 +1,42 @@
+name: PR Traceability & Agile Compliance Check
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  traceability-validation:
+    name: Validate Requirement Traceability & Branch Conventions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check Branch Name Convention
+        run: |
+          BRANCH_NAME="${{ github.head_ref }}"
+          echo "Checking branch name: $BRANCH_NAME"
+          # Allowed pattern: <owner>/<type>/<short-slug>-LMS-<MODULE>-<NUM> or [no-req]
+          # e.g., saanvi/feat/course-models-LMS-CRS-02
+          if [[ "$BRANCH_NAME" =~ ^[a-zA-Z0-9_-]+\/(feat|fix|docs|refactor|test)\/[a-zA-Z0-9_-]+-LMS-[A-Z]+-[0-9]+$ || "$BRANCH_NAME" =~ ^[a-zA-Z0-9_-]+\/(feat|fix|docs|refactor|test)\/no-req-[a-zA-Z0-9_-]+$ ]]; then
+            echo "✅ Branch naming satisfies Agile convention: $BRANCH_NAME"
+          else
+            echo "⚠️ Warning: Branch '$BRANCH_NAME' does not match '<owner>/<type>/<slug>-LMS-<MODULE>-<ID>'."
+            echo "Example of expected format: saanvi/feat/custom-user-LMS-AUTH-01"
+            echo "Please ensure you reference your assigned requirement ID."
+          fi
+
+      - name: Check PR Body for Requirement ID or Issue Reference
+        run: |
+          PR_BODY="${{ github.event.pull_request.body }}"
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          COMBINED="$PR_TITLE $PR_BODY"
+          
+          echo "Validating PR content for SRS Requirement / Issue linkage..."
+          if echo "$COMBINED" | grep -Eq "LMS-[A-Z]+-[0-9]+|#[0-9]+|\[no-req\]"; then
+            echo "✅ Traceability statement detected!"
+          else
+            echo "❌ ERROR: No Requirement ID (e.g. LMS-AUTH-01), Issue number (#1), or [no-req] tag found in PR title or body."
+            echo "Every pull request must trace back to an assigned requirement in docs/TRACEABILITY.md or an open issue."
+            exit 1
+          fi
