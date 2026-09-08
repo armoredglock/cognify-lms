@@ -1,0 +1,38 @@
+# Labeler configuration for Cognify LMS
+track:p1-core:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'backend/apps/users/**'
+          - 'backend/apps/courses/**'
+          - 'backend/config/**'
+
+track:p2-tracking:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'backend/apps/tracking/**'
+          - 'backend/services/redis_cache.py'
+
+track:p3-assessments:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'backend/apps/assessments/**'
+          - 'backend/services/exam_session.py'
+
+track:p4-gamification:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'backend/apps/gamification/**'
+          - 'backend/services/leaderboard.py'
+
+track:p5-ai-frontend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'backend/apps/ai_generator/**'
+          - 'frontend/**'
+
+dbms-focus:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'backend/apps/**/models.py'
+          - 'backend/services/**'
+          - 'docs/DBMS_ER_DIAGRAM.md'

@@ -7,4 +7,11 @@ redis>=5.0.0
 django-redis>=5.4.0
 python-dotenv>=1.0.0
 requests>=2.31.0
+
+# Code Quality, Formatting & Security
 flake8>=6.1.0
+black>=23.0.0
+isort>=5.12.0
+bandit>=1.7.5
+pip-audit>=2.6.0
+coverage>=7.3.0

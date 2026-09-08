@@ -1,4 +1,4 @@
-name: Frontend CI (React Build & Verification)
+name: Frontend CI (React Build & Security Audit)
 
 on:
   push:
@@ -13,8 +13,8 @@ on:
       - '.github/workflows/frontend-ci.yml'
 
 jobs:
-  build-and-lint:
-    name: React Build Verification
+  frontend-build-and-audit:
+    name: React Build & Dependency Security Audit
     runs-on: ubuntu-latest
 
     steps:
@@ -33,7 +33,12 @@ jobs:
         run: |
           npm install
 
-      - name: Build React Application
+      - name: Audit NPM Packages for Vulnerabilities
+        working-directory: ./frontend
+        run: |
+          npm audit --audit-level=high || true
+
+      - name: Build Production React Bundle (Vite)
         working-directory: ./frontend
         run: |
           npm run build

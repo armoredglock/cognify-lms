@@ -1,4 +1,4 @@
-name: Backend CI (Django & DBMS Integrity)
+name: Backend CI (Django, PostgreSQL & Security SAST)
 
 on:
   push:
@@ -13,15 +13,15 @@ on:
       - '.github/workflows/backend-ci.yml'
 
 jobs:
-  django-check:
-    name: Django Integrity, Migrations & Tests
+  backend-quality-and-tests:
+    name: Backend Lint, Security & Database Integrity
     runs-on: ubuntu-latest
 
     services:
       postgres:
         image: postgres:15-alpine
         env:
-          POSTGRES_DB: cognify_lms_test
+          POSTGRES_DB: cognify_lms_ci
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgrespassword
         ports:
@@ -49,19 +49,22 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt
-          pip install flake8
 
-      - name: Lint Code with Flake8
+      - name: Run Bandit Security SAST Scan (SQLi & Vulnerability Check)
         run: |
-          # stop the build if there are Python syntax errors or undefined names
+          bandit -r backend/apps backend/services backend/config -ll -i
+
+      - name: Run Flake8 Code Linter
+        run: |
+          # Stop build on syntax errors or undefined names
           flake8 backend --count --select=E9,F63,F7,F82 --show-source --statistics
-          # exit-zero treats all errors as warnings. Max line length 120
+          # Max line length 120
           flake8 backend --count --exit-zero --max-line-length=120 --statistics
 
-      - name: Run Django System Checks
+      - name: Django System Health Check
         working-directory: ./backend
         env:
-          DB_NAME: cognify_lms_test
+          DB_NAME: cognify_lms_ci
           DB_USER: postgres
           DB_PASSWORD: postgrespassword
           DB_HOST: localhost
@@ -72,10 +75,10 @@ jobs:
         run: |
           python manage.py check
 
-      - name: Verify Database Migrations Integrity (No missing migrations)
+      - name: Check for Uncommitted Model Migrations
         working-directory: ./backend
         env:
-          DB_NAME: cognify_lms_test
+          DB_NAME: cognify_lms_ci
           DB_USER: postgres
           DB_PASSWORD: postgrespassword
           DB_HOST: localhost
@@ -86,10 +89,10 @@ jobs:
         run: |
           python manage.py makemigrations --check --dry-run
 
-      - name: Run Automated Backend Tests
+      - name: Apply Live Migrations on PostgreSQL 15
         working-directory: ./backend
         env:
-          DB_NAME: cognify_lms_test
+          DB_NAME: cognify_lms_ci
           DB_USER: postgres
           DB_PASSWORD: postgrespassword
           DB_HOST: localhost
@@ -98,4 +101,19 @@ jobs:
           SECRET_KEY: ci-secret-key-test-environment
           DEBUG: "True"
         run: |
-          python manage.py test
+          python manage.py migrate
+
+      - name: Run Unit Tests with Coverage
+        working-directory: ./backend
+        env:
+          DB_NAME: cognify_lms_ci
+          DB_USER: postgres
+          DB_PASSWORD: postgrespassword
+          DB_HOST: localhost
+          DB_PORT: 5432
+          REDIS_URL: redis://localhost:6379/1
+          SECRET_KEY: ci-secret-key-test-environment
+          DEBUG: "True"
+        run: |
+          coverage run manage.py test
+          coverage report -m
