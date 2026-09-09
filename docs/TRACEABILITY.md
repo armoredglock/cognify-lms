@@ -20,10 +20,10 @@ This document tracks every Functional Requirement (FR) to its assigned module ow
 | `LMS-QZ-02` | Timed Session (TTL) | @swatisaumya | @armoredglock | `backend/services/exam_session.py` | Redis `quiz_session:{attempt_id}` with TTL |
 | `LMS-QZ-03` | Atomic Submissions | @swatisaumya | @armoredglock | `backend/apps/assessments/views.py` | `@transaction.atomic` auto-grader |
 | `LMS-QZ-04` | Quiz Review & Hist | @swatisaumya | @armoredglock | `backend/apps/assessments/views.py` | Query historical attempts and answers |
-| `LMS-GAM-01` | Redis Leaderboard | @meheli-ghosh | @armoredglock | `backend/services/leaderboard.py` | Redis Sorted Set `leaderboard:course:{id}` |
-| `LMS-GAM-02` | Leaderboard API | @meheli-ghosh | @armoredglock | `backend/apps/gamification/views.py`| `ZREVRANGE` top 10 & `ZREVRANK` user rank |
-| `LMS-GAM-03` | Certificate Logic | @meheli-ghosh | @armoredglock | `backend/apps/gamification/models.py`| `Certificate` verification hash generation |
-| `LMS-GAM-04` | Gradebook Views | @meheli-ghosh | @armoredglock | `backend/apps/gamification/views.py`| SQL aggregation queries (Avg, Count, Max) |
+| `LMS-GAM-01` | Redis Leaderboard | @MEHELIGHOSH | @armoredglock | `backend/services/leaderboard.py` | Redis Sorted Set `leaderboard:course:{id}` |
+| `LMS-GAM-02` | Leaderboard API | @MEHELIGHOSH | @armoredglock | `backend/apps/gamification/views.py`| `ZREVRANGE` top 10 & `ZREVRANK` user rank |
+| `LMS-GAM-03` | Certificate Logic | @MEHELIGHOSH | @armoredglock | `backend/apps/gamification/models.py`| `Certificate` verification hash generation |
+| `LMS-GAM-04` | Gradebook Views | @MEHELIGHOSH | @armoredglock | `backend/apps/gamification/views.py`| SQL aggregation queries (Avg, Count, Max) |
 | `LMS-AI-01` | AI Artifact Schema | @armoredglock | @BibekTripathy | `backend/apps/ai_generator/models.py`| `AIArtifact` table storing JSON payloads |
 | `LMS-AI-02` | Transcript Pipeline | @armoredglock | @BibekTripathy | `backend/apps/ai_generator/services.py`| Prompt templates, JSON MCQ generation |
 | `LMS-FE-03` | React Setup & Auth | @armoredglock | @BibekTripathy | `frontend/src/` | AuthContext, Protected routes, Vite config |

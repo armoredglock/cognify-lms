@@ -16,7 +16,7 @@
 | **1** | **Saanvi Singhal** *(Group Leader)* | [@saanvi-singhal](https://github.com/saanvi-singhal) | **Core Architecture & Course Schema** | Custom RBAC User model, Course/Module/Lesson schema, Foreign Keys, cascades, and catalog APIs. |
 | **2** | **Bibek Tripathy** *(Co-Lead)* | [@BibekTripathy](https://github.com/BibekTripathy) | **Video Analytics & Redis Playback Cache** | Redis caching for video playback heartbeats, durable sync to `LessonProgress`, watch-time analytics. |
 | **3** | **Swati Saumya** | [@swatisaumya](https://github.com/swatisaumya) | **Assessment Engine & Redis Timed Sessions** | Quiz/Question schema, Redis TTL session key management for timed exams, atomic submission engine. |
-| **4** | **Meheli Ghosh** | [@meheli-ghosh](https://github.com/meheli-ghosh) | **Gamification & Certification Engine** | Real-time Leaderboards with Redis Sorted Sets (`ZSET`), SQL aggregation gradebooks, certificate hashes. |
+| **4** | **Meheli Ghosh** | [@MEHELIGHOSH](https://github.com/MEHELIGHOSH) | **Gamification & Certification Engine** | Real-time Leaderboards with Redis Sorted Sets (`ZSET`), SQL aggregation gradebooks, certificate hashes. |
 | **5** | **Sagnik Datta** *(Co-Lead)* | [@armoredglock](https://github.com/armoredglock) | **AI Assessment Generator & Frontend UI** | AI schema for generated MCQs/flashcards, transcript processing pipeline, React student dashboard. |
 
 *Co-Leads (@armoredglock and @BibekTripathy) act as dual codeowners to facilitate continuous PR review and testing.*
