@@ -2,6 +2,11 @@
 > **Database Management Systems (DBMS) Course Project**  
 > An intelligent, scalable online learning platform with dual-tier storage (PostgreSQL + Redis), automated assessments, video tracking, real-time leaderboards, and AI-powered study tools.
 
+[![Backend CI](https://github.com/armoredglock/cognify-lms/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/armoredglock/cognify-lms/actions/workflows/backend-ci.yml)
+[![Frontend CI](https://github.com/armoredglock/cognify-lms/actions/workflows/frontend-ci.yml/badge.svg)](https://github.com/armoredglock/cognify-lms/actions/workflows/frontend-ci.yml)
+[![Security Scan](https://github.com/armoredglock/cognify-lms/actions/workflows/security-scan.yml/badge.svg)](https://github.com/armoredglock/cognify-lms/actions/workflows/security-scan.yml)
+[![PR Traceability](https://github.com/armoredglock/cognify-lms/actions/workflows/traceability-check.yml/badge.svg)](https://github.com/armoredglock/cognify-lms/actions/workflows/traceability-check.yml)
+
 ---
 
 ## 👥 Project Team & Responsibility Allocation
@@ -143,6 +148,35 @@ npm install
 npm run dev
 ```
 Frontend interface will be running at `http://localhost:5173/`.
+
+---
+
+## ⚙️ Automated CI/CD Pipelines & Quality Gates
+
+Cognify LMS integrates **5 automated GitHub Actions workflows** to guarantee code quality, database migration safety, and cybersecurity:
+
+```mermaid
+flowchart LR
+    A["Developer Push / PR"] --> B["Traceability Check<br/>(Branch & SRS Link)"]
+    A --> C["Auto-Labeler<br/>(Track P1-P5)"]
+    A --> D["Backend CI<br/>(Bandit, Flake8, PG15, Coverage)"]
+    A --> E["Frontend CI<br/>(NPM Audit, Vite Build)"]
+    A --> F["Security Scan<br/>(Gitleaks, pip-audit)"]
+    
+    B & C & D & E & F --> G{"All Gates Pass?"}
+    G -- Yes --> H["Review by CODEOWNERS<br/>& Merge to main"]
+    G -- No --> I["Blocked / Fix Requested"]
+```
+
+| Pipeline | Target & Scope | Key Automated Verifications |
+| :--- | :--- | :--- |
+| **`backend-ci.yml`** | Django & DBMS | **Bandit SAST** (SQL injection/vulnerability scan), **Live PostgreSQL 15 migration run**, migration drift check, Flake8, test coverage. |
+| **`frontend-ci.yml`** | React Single-Page App | `npm audit` dependency security audit, strict Vite production bundle smoke test. |
+| **`security-scan.yml`** | Repository Shield | **Gitleaks** secret & credential scanning, **pip-audit** Python package CVE checks. |
+| **`traceability-check.yml`** | Agile Process | Validates branch convention (`<owner>/feat/<slug>-<req-id>`), enforces SRS requirement ID, posts automated sticky status report. |
+| **`pr-auto-labeler.yml`** | Workflow Automation | Inspects modified files and auto-applies module labels (`track:p1-core` through `track:p5-ai-frontend`). |
+
+> 📖 **Full Architectural Documentation**: See [`docs/CI_CD_WORKFLOW.md`](docs/CI_CD_WORKFLOW.md) for detailed pipeline flows, test outputs, and local developer guides.
 
 ---
 
