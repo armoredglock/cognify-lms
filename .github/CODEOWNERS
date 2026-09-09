@@ -1,12 +1,12 @@
 # ==============================================================================
 # CODEOWNERS - Cognify LMS (DBMS Course Project)
 # Rules:
-# - Default owners: @armoredglock and @saanvi-singhal (dual co-leads for seamless review availability)
+# - Default owners: @armoredglock and @BibekTripathy (dual co-leads for seamless review availability)
 # - Section owners are automatically requested for PR review on their respective modules.
 # ==============================================================================
 
 # Global fallback: Either Co-Lead can review and approve any PR
-*                                                       @armoredglock @saanvi-singhal
+*                                                       @armoredglock @BibekTripathy
 
 # P1 — Core Architecture, RBAC & Course Management (Saanvi Singhal)
 /backend/apps/users/                                    @saanvi-singhal @armoredglock
@@ -14,8 +14,8 @@
 /backend/config/                                        @saanvi-singhal @armoredglock
 
 # P2 — Video Analytics & Redis Playback Cache (Bibek Tripathy)
-/backend/apps/tracking/                                 @bibek-tripathy @armoredglock
-/backend/services/redis_cache.py                        @bibek-tripathy @armoredglock
+/backend/apps/tracking/                                 @BibekTripathy @armoredglock
+/backend/services/redis_cache.py                        @BibekTripathy @armoredglock
 
 # P3 — Assessment Engine & Redis Timed Sessions (Swati Saumya)
 /backend/apps/assessments/                              @swatisaumya @armoredglock
@@ -26,9 +26,9 @@
 /backend/services/leaderboard.py                        @meheli-ghosh @armoredglock
 
 # P5 — AI Assessment Generator & Frontend UI Integration (Sagnik Datta)
-/backend/apps/ai_generator/                             @armoredglock @saanvi-singhal
-/frontend/                                              @armoredglock @saanvi-singhal
+/backend/apps/ai_generator/                             @armoredglock @BibekTripathy
+/frontend/                                              @armoredglock @BibekTripathy
 
 # Shared Infrastructure, CI Workflows and Project Documentation
-/.github/                                               @armoredglock @saanvi-singhal
-/docs/                                                  @armoredglock @saanvi-singhal
+/.github/                                               @armoredglock @BibekTripathy
+/docs/                                                  @armoredglock @BibekTripathy

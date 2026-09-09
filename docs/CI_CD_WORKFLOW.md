@@ -35,7 +35,7 @@ flowchart TD
         GATES -- "❌ Fail (Red X)" --> REVISE["PR blocked from merge.<br/>Developer fixes errors."]
         REVISE --> DEV
         
-        GATES -- "✅ Success (Green Check)" --> APPROVE["CODEOWNERS review<br/>(@armoredglock or @saanvi-singhal)"]
+        GATES -- "✅ Success (Green Check)" --> APPROVE["CODEOWNERS review<br/>(@armoredglock or @BibekTripathy)"]
         APPROVE --> MERGE["Squash & Merge into main"]
     end
 ```
@@ -140,6 +140,6 @@ cd frontend && npm run build
 ## 4. How Code Reviews Work with CODEOWNERS
 
 1. When a PR is opened, GitHub automatically requests reviews from:
-   - The specific **Task Section Owner** (e.g., `@swatisaumya` for assessments, `@bibek-tripathy` for video tracking).
-   - Either **Co-Lead** ([@armoredglock](https://github.com/armoredglock) or [@saanvi-singhal](https://github.com/saanvi-singhal)).
+   - The specific **Task Section Owner** (e.g., `@swatisaumya` for assessments, `@BibekTripathy` for video tracking).
+   - Either **Co-Lead** ([@armoredglock](https://github.com/armoredglock) or [@BibekTripathy](https://github.com/BibekTripathy)).
 2. Once the **CI checks turn green** and at least one codeowner approves, the PR is merged into `main`.

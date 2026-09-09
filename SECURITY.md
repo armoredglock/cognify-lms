@@ -21,6 +21,7 @@ Cognify LMS handles user credentials, student performance records, timed assessm
 
 Instead, report it privately to the project leads:
 - **Sagnik Datta** ([@armoredglock](https://github.com/armoredglock)) — Co-Lead
+- **Bibek Tripathy** ([@BibekTripathy](https://github.com/BibekTripathy)) — Co-Lead
 - **Saanvi Singhal** ([@saanvi-singhal](https://github.com/saanvi-singhal)) — Group Leader
 
 You can also use GitHub's **Private Vulnerability Reporting** for this repository (under the `Security` tab -> `Report a vulnerability`).

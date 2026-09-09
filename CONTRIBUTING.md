@@ -55,7 +55,7 @@ Commit messages must be clear and reference the scope and requirement ID:
 
 1. **Keep PRs focused**: One requirement per PR. Do not bundle unrelated changes.
 2. **Review Ownership**:
-   - As declared in `.github/CODEOWNERS`, either Co-Lead (**@armoredglock** or **@saanvi-singhal**) can review and approve any PR.
+   - As declared in `.github/CODEOWNERS`, either Co-Lead (**@armoredglock** or **@BibekTripathy**) can review and approve any PR.
    - The module author is also requested for review on their respective components.
 3. **Database Migration Checks**:
    - If your PR introduces or alters Django models, always commit the generated migration files (`python manage.py makemigrations`).
