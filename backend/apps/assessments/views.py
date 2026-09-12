@@ -224,3 +224,137 @@ def submit_quiz(request, attempt_id):
         'total_questions': total_questions,
         'completed_at': attempt.completed_at.isoformat(),
     })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def review_quiz_attempt(request, attempt_id):
+    """
+    Retrieve question-by-question review for a submitted quiz attempt [LMS-QZ-04].
+    Prevents leakage before submission and enforces student ownership.
+    """
+    try:
+        attempt = QuizAttempt.objects.select_related(
+            'quiz', 'student'
+        ).prefetch_related(
+            'student_answers__selected_option',
+            'student_answers__question',
+            'quiz__questions__options'
+        ).get(id=attempt_id)
+    except QuizAttempt.DoesNotExist:
+        return Response(
+            {'error': 'Quiz attempt not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    # Permission check: student can only review their own attempt (or staff)
+    if attempt.student != request.user and not request.user.is_staff:
+        return Response(
+            {'error': 'Quiz attempt not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    # Prevent answer leakage before submission
+    if attempt.completed_at is None:
+        return Response(
+            {
+                'error': (
+                    'Quiz attempt is still in progress. '
+                    'Review is only available after submission.'
+                )
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    answers_map = {
+        sa.question_id: sa
+        for sa in attempt.student_answers.all()
+    }
+
+    questions_review = []
+    for question in attempt.quiz.questions.all():
+        student_ans = answers_map.get(question.id)
+        correct_opt = question.correct_option
+        is_correct = bool(
+            student_ans and student_ans.selected_option.is_correct
+        )
+        earned_points = question.points if is_correct else 0
+
+        questions_review.append({
+            'question_id': str(question.id),
+            'question_text': question.question_text,
+            'question_type': question.question_type,
+            'points_possible': question.points,
+            'points_earned': earned_points,
+            'is_correct': is_correct,
+            'selected_option': {
+                'id': str(student_ans.selected_option.id),
+                'option_text': student_ans.selected_option.option_text,
+            } if student_ans else None,
+            'correct_option': {
+                'id': str(correct_opt.id),
+                'option_text': correct_opt.option_text,
+            } if correct_opt else None,
+            'options': [
+                {
+                    'id': str(opt.id),
+                    'option_text': opt.option_text,
+                    'is_correct': opt.is_correct,
+                }
+                for opt in question.options.all()
+            ],
+        })
+
+    return Response({
+        'attempt_id': str(attempt.id),
+        'quiz_id': str(attempt.quiz.id),
+        'quiz_title': attempt.quiz.title,
+        'student_username': attempt.student.username,
+        'score': attempt.total_score,
+        'passing_score': attempt.quiz.passing_score,
+        'is_passed': attempt.is_passed,
+        'started_at': attempt.started_at.isoformat(),
+        'completed_at': attempt.completed_at.isoformat(),
+        'questions': questions_review,
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def quiz_history(request, quiz_id):
+    """
+    Retrieve historical completed attempts for the authenticated student [LMS-QZ-04].
+    """
+    try:
+        quiz = Quiz.objects.get(id=quiz_id)
+    except Quiz.DoesNotExist:
+        return Response(
+            {'error': 'Quiz not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    attempts = QuizAttempt.objects.filter(
+        quiz=quiz,
+        student=request.user,
+        completed_at__isnull=False
+    ).order_by('-completed_at')
+
+    history_records = [
+        {
+            'attempt_id': str(att.id),
+            'score': att.total_score,
+            'passing_score': quiz.passing_score,
+            'is_passed': att.is_passed,
+            'started_at': att.started_at.isoformat(),
+            'completed_at': att.completed_at.isoformat(),
+        }
+        for att in attempts
+    ]
+
+    return Response({
+        'quiz_id': str(quiz.id),
+        'quiz_title': quiz.title,
+        'passing_score': quiz.passing_score,
+        'total_attempts': len(history_records),
+        'attempts': history_records,
+    })

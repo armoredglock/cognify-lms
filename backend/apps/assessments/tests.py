@@ -911,7 +911,7 @@ class AtomicQuizSubmissionGradingEngineTest(TestCase):
             question_text='1 pt Question',
             points=1
         )
-        q_1pt_correct = Option.objects.create(question=q_1pt, option_text='A', is_correct=True)
+        Option.objects.create(question=q_1pt, option_text='A', is_correct=True)
         q_1pt_wrong = Option.objects.create(question=q_1pt, option_text='B', is_correct=False)
 
         q_3pt = Question.objects.create(
@@ -920,7 +920,7 @@ class AtomicQuizSubmissionGradingEngineTest(TestCase):
             points=3
         )
         q_3pt_correct = Option.objects.create(question=q_3pt, option_text='C', is_correct=True)
-        q_3pt_wrong = Option.objects.create(question=q_3pt, option_text='D', is_correct=False)
+        Option.objects.create(question=q_3pt, option_text='D', is_correct=False)
 
         self.client.force_authenticate(user=self.student)
         start_resp = self.client.post(f"/api/assessments/quizzes/{weighted_quiz.id}/start/")
@@ -944,3 +944,239 @@ class AtomicQuizSubmissionGradingEngineTest(TestCase):
         self.assertEqual(resp.data['correct_answers'], 1)
         self.assertEqual(resp.data['total_questions'], 2)
 
+
+@override_settings(CACHES=TEST_CACHES)
+class QuizReviewAndHistoryAPITest(TestCase):
+    """
+    Test suite for Quiz Review and Historical Performance REST API [LMS-QZ-04].
+    Ensures answers are not leaked before submission, validates ownership checks,
+    and tests historical attempt retrieval.
+    """
+
+    def setUp(self):
+        cache.clear()
+        self.client = APIClient()
+
+        self.instructor = User.objects.create_user(
+            username='prof_review',
+            email='review_prof@example.com',
+            password='Password123!',
+            role=User.Role.INSTRUCTOR
+        )
+        self.alice = User.objects.create_user(
+            username='alice_review',
+            email='alice_rev@example.com',
+            password='Password123!',
+            role=User.Role.STUDENT
+        )
+        self.bob = User.objects.create_user(
+            username='bob_review',
+            email='bob_rev@example.com',
+            password='Password123!',
+            role=User.Role.STUDENT
+        )
+
+        self.course = Course.objects.create(
+            title='Transaction Processing Systems',
+            slug='trans-proc',
+            instructor=self.instructor
+        )
+        self.module = Module.objects.create(
+            course=self.course,
+            title='Concurrency Control',
+            order=1
+        )
+        self.lesson = Lesson.objects.create(
+            module=self.module,
+            title='Strict 2PL & Serializability',
+            order=1
+        )
+
+        self.quiz = Quiz.objects.create(
+            lesson=self.lesson,
+            title='Serializability Exam',
+            passing_score=60,
+            time_limit_minutes=20
+        )
+
+        # Question 1 (2 pts)
+        self.q1 = Question.objects.create(
+            quiz=self.quiz,
+            question_text='Does Strict 2PL prevent cascading aborts?',
+            question_type=Question.Type.TRUE_FALSE,
+            points=2
+        )
+        self.q1_opt_correct = Option.objects.create(
+            question=self.q1, option_text='True', is_correct=True
+        )
+        self.q1_opt_wrong = Option.objects.create(
+            question=self.q1, option_text='False', is_correct=False
+        )
+
+        # Question 2 (3 pts)
+        self.q2 = Question.objects.create(
+            quiz=self.quiz,
+            question_text='Which anomaly is prevented by Snapshot Isolation?',
+            question_type=Question.Type.MCQ,
+            points=3
+        )
+        self.q2_opt_correct = Option.objects.create(
+            question=self.q2, option_text='Dirty Read', is_correct=True
+        )
+        self.q2_opt_wrong = Option.objects.create(
+            question=self.q2, option_text='Write Skew', is_correct=False
+        )
+
+    def _submit_attempt(self, student, answers):
+        self.client.force_authenticate(user=student)
+        start_resp = self.client.post(f"/api/assessments/quizzes/{self.quiz.id}/start/")
+        attempt_id = start_resp.data['attempt_id']
+
+        submit_resp = self.client.post(
+            f"/api/assessments/attempts/{attempt_id}/submit/",
+            data={'answers': answers},
+            format='json'
+        )
+        return attempt_id, submit_resp
+
+    def test_review_endpoint_returns_answers_and_points_earned(self):
+        """Submitted attempt review displays correct vs selected options and points [LMS-QZ-04]."""
+        # Alice answers q1 correctly (+2) and q2 incorrectly (0)
+        answers = [
+            {'question_id': str(self.q1.id), 'option_id': str(self.q1_opt_correct.id)},
+            {'question_id': str(self.q2.id), 'option_id': str(self.q2_opt_wrong.id)},
+        ]
+        attempt_id, _ = self._submit_attempt(self.alice, answers)
+
+        self.client.force_authenticate(user=self.alice)
+        resp = self.client.get(f"/api/assessments/attempts/{attempt_id}/review/")
+
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data['attempt_id'], str(attempt_id))
+        self.assertEqual(resp.data['score'], 40)  # 2/5 = 40%
+        self.assertFalse(resp.data['is_passed'])
+        self.assertIsNotNone(resp.data['completed_at'])
+
+        questions = resp.data['questions']
+        self.assertEqual(len(questions), 2)
+
+        # Inspect Q1 (Correct)
+        q1_data = next(q for q in questions if q['question_id'] == str(self.q1.id))
+        self.assertTrue(q1_data['is_correct'])
+        self.assertEqual(q1_data['points_earned'], 2)
+        self.assertEqual(q1_data['points_possible'], 2)
+        self.assertEqual(q1_data['selected_option']['id'], str(self.q1_opt_correct.id))
+        self.assertEqual(q1_data['correct_option']['id'], str(self.q1_opt_correct.id))
+
+        # Inspect Q2 (Wrong)
+        q2_data = next(q for q in questions if q['question_id'] == str(self.q2.id))
+        self.assertFalse(q2_data['is_correct'])
+        self.assertEqual(q2_data['points_earned'], 0)
+        self.assertEqual(q2_data['points_possible'], 3)
+        self.assertEqual(q2_data['selected_option']['id'], str(self.q2_opt_wrong.id))
+        self.assertEqual(q2_data['correct_option']['id'], str(self.q2_opt_correct.id))
+
+    def test_review_endpoint_rejects_unsubmitted_attempt(self):
+        """Reviewing an in-progress attempt is rejected to prevent answer leakage [LMS-QZ-04]."""
+        self.client.force_authenticate(user=self.alice)
+        start_resp = self.client.post(f"/api/assessments/quizzes/{self.quiz.id}/start/")
+        attempt_id = start_resp.data['attempt_id']
+
+        # Attempt to review before submission
+        resp = self.client.get(f"/api/assessments/attempts/{attempt_id}/review/")
+
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('still in progress', resp.data['error'])
+        self.assertNotIn('questions', resp.data)
+
+    def test_review_endpoint_enforces_student_ownership(self):
+        """Student Bob cannot access Alice's attempt review [LMS-QZ-04]."""
+        answers = [
+            {'question_id': str(self.q1.id), 'option_id': str(self.q1_opt_correct.id)},
+        ]
+        attempt_id, _ = self._submit_attempt(self.alice, answers)
+
+        # Bob attempts to review Alice's attempt
+        self.client.force_authenticate(user=self.bob)
+        resp = self.client.get(f"/api/assessments/attempts/{attempt_id}/review/")
+
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_review_endpoint_unauthenticated(self):
+        """Unauthenticated request to review endpoint returns HTTP 401 [LMS-QZ-04]."""
+        attempt = QuizAttempt.objects.create(
+            student=self.alice,
+            quiz=self.quiz,
+            total_score=100,
+            is_passed=True
+        )
+        self.client.force_authenticate(user=None)
+        resp = self.client.get(f"/api/assessments/attempts/{attempt.id}/review/")
+        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_review_endpoint_nonexistent_attempt(self):
+        """Reviewing a nonexistent attempt UUID returns HTTP 404 [LMS-QZ-04]."""
+        self.client.force_authenticate(user=self.alice)
+        resp = self.client.get(f"/api/assessments/attempts/{uuid.uuid4()}/review/")
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_quiz_history_returns_logged_in_student_completed_attempts(self):
+        """History returns only completed attempts for the authenticated student [LMS-QZ-04]."""
+        # Alice completes Attempt 1 (0%)
+        ans_fail = [
+            {'question_id': str(self.q1.id), 'option_id': str(self.q1_opt_wrong.id)},
+            {'question_id': str(self.q2.id), 'option_id': str(self.q2_opt_wrong.id)},
+        ]
+        att1_id, _ = self._submit_attempt(self.alice, ans_fail)
+
+        # Alice completes Attempt 2 (100%)
+        ans_pass = [
+            {'question_id': str(self.q1.id), 'option_id': str(self.q1_opt_correct.id)},
+            {'question_id': str(self.q2.id), 'option_id': str(self.q2_opt_correct.id)},
+        ]
+        att2_id, _ = self._submit_attempt(self.alice, ans_pass)
+
+        # Alice starts an uncompleted attempt (in-progress)
+        self.client.force_authenticate(user=self.alice)
+        self.client.post(f"/api/assessments/quizzes/{self.quiz.id}/start/")
+
+        # Bob completes an attempt (should NOT appear in Alice's history)
+        self._submit_attempt(self.bob, ans_pass)
+
+        # Fetch Alice's history
+        self.client.force_authenticate(user=self.alice)
+        resp = self.client.get(f"/api/assessments/quizzes/{self.quiz.id}/history/")
+
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data['quiz_id'], str(self.quiz.id))
+        self.assertEqual(resp.data['passing_score'], 60)
+        self.assertEqual(resp.data['total_attempts'], 2)
+
+        attempt_ids = [a['attempt_id'] for a in resp.data['attempts']]
+        self.assertIn(str(att1_id), attempt_ids)
+        self.assertIn(str(att2_id), attempt_ids)
+
+        scores = [a['score'] for a in resp.data['attempts']]
+        self.assertIn(0, scores)
+        self.assertIn(100, scores)
+
+    def test_quiz_history_empty_when_no_attempts(self):
+        """Student with no attempts returns empty history list [LMS-QZ-04]."""
+        self.client.force_authenticate(user=self.alice)
+        resp = self.client.get(f"/api/assessments/quizzes/{self.quiz.id}/history/")
+
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data['total_attempts'], 0)
+        self.assertEqual(resp.data['attempts'], [])
+
+    def test_quiz_history_nonexistent_quiz(self):
+        """Requesting history for invalid quiz UUID returns HTTP 404 [LMS-QZ-04]."""
+        self.client.force_authenticate(user=self.alice)
+        resp = self.client.get(f"/api/assessments/quizzes/{uuid.uuid4()}/history/")
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_quiz_history_unauthenticated(self):
+        """Unauthenticated request to history returns HTTP 401 [LMS-QZ-04]."""
+        self.client.force_authenticate(user=None)
+        resp = self.client.get(f"/api/assessments/quizzes/{self.quiz.id}/history/")
+        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
