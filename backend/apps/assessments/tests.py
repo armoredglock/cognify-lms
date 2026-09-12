@@ -1,4 +1,5 @@
 import uuid
+from unittest.mock import patch
 from django.test import TestCase, override_settings
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError
@@ -481,3 +482,465 @@ class TimedQuizSessionAPITest(TestCase):
 
         # Redis key must be purged
         self.assertIsNone(cache.get(key))
+
+
+@override_settings(CACHES=TEST_CACHES)
+class AtomicQuizSubmissionGradingEngineTest(TestCase):
+    """
+    Test suite for Atomic Quiz Submission and Auto-Grading Engine [LMS-QZ-03].
+    Validates exact score calculation, pass/fail threshold, ACID transactions,
+    atomic rollback on failure, and Redis session cleanup.
+    """
+
+    def setUp(self):
+        cache.clear()
+        self.client = APIClient()
+
+        self.instructor = User.objects.create_user(
+            username='prof_turing',
+            email='turing@example.com',
+            password='Password123!',
+            role=User.Role.INSTRUCTOR
+        )
+        self.student = User.objects.create_user(
+            username='alice_student',
+            email='alice@example.com',
+            password='Password123!',
+            role=User.Role.STUDENT
+        )
+        self.other_student = User.objects.create_user(
+            username='bob_student',
+            email='bob@example.com',
+            password='Password123!',
+            role=User.Role.STUDENT
+        )
+
+        self.course = Course.objects.create(
+            title='Distributed Databases',
+            slug='dist-db-grading',
+            instructor=self.instructor
+        )
+        self.module = Module.objects.create(
+            course=self.course,
+            title='Consensus Protocols',
+            order=1
+        )
+        self.lesson = Lesson.objects.create(
+            module=self.module,
+            title='Raft & Paxos',
+            order=1
+        )
+
+        # Quiz with 4 questions, 75% passing score, 30 min duration
+        self.quiz = Quiz.objects.create(
+            lesson=self.lesson,
+            title='Consensus Mastery Exam',
+            passing_score=75,
+            time_limit_minutes=30
+        )
+
+        # Question 1 (1 pt)
+        self.q1 = Question.objects.create(
+            quiz=self.quiz,
+            question_text='Does Raft elect a leader?',
+            question_type=Question.Type.TRUE_FALSE,
+            points=1
+        )
+        self.q1_opt_correct = Option.objects.create(
+            question=self.q1, option_text='True', is_correct=True
+        )
+        self.q1_opt_wrong = Option.objects.create(
+            question=self.q1, option_text='False', is_correct=False
+        )
+
+        # Question 2 (1 pt)
+        self.q2 = Question.objects.create(
+            quiz=self.quiz,
+            question_text='Paxos handles network partitions safely.',
+            question_type=Question.Type.TRUE_FALSE,
+            points=1
+        )
+        self.q2_opt_correct = Option.objects.create(
+            question=self.q2, option_text='True', is_correct=True
+        )
+        self.q2_opt_wrong = Option.objects.create(
+            question=self.q2, option_text='False', is_correct=False
+        )
+
+        # Question 3 (1 pt)
+        self.q3 = Question.objects.create(
+            quiz=self.quiz,
+            question_text='Which algorithm uses randomized election timers?',
+            question_type=Question.Type.MCQ,
+            points=1
+        )
+        self.q3_opt_correct = Option.objects.create(
+            question=self.q3, option_text='Raft', is_correct=True
+        )
+        self.q3_opt_wrong = Option.objects.create(
+            question=self.q3, option_text='Two-Phase Commit', is_correct=False
+        )
+
+        # Question 4 (1 pt)
+        self.q4 = Question.objects.create(
+            quiz=self.quiz,
+            question_text='Can Paxos nodes propose values concurrently?',
+            question_type=Question.Type.TRUE_FALSE,
+            points=1
+        )
+        self.q4_opt_correct = Option.objects.create(
+            question=self.q4, option_text='True', is_correct=True
+        )
+        self.q4_opt_wrong = Option.objects.create(
+            question=self.q4, option_text='False', is_correct=False
+        )
+
+    def _start_attempt(self, user=None):
+        u = user or self.student
+        self.client.force_authenticate(user=u)
+        resp = self.client.post(f"/api/assessments/quizzes/{self.quiz.id}/start/")
+        return resp.data['attempt_id']
+
+    def test_exact_score_passed_at_or_above_threshold(self):
+        """Student with 3/4 correct (75%) passes with exact score and clears session [LMS-QZ-03]."""
+        attempt_id = self._start_attempt()
+        key = get_session_key(attempt_id)
+        self.assertIsNotNone(cache.get(key))
+
+        payload = {
+            'answers': [
+                {'question_id': str(self.q1.id), 'option_id': str(self.q1_opt_correct.id)},
+                {'question_id': str(self.q2.id), 'option_id': str(self.q2_opt_correct.id)},
+                {'question_id': str(self.q3.id), 'option_id': str(self.q3_opt_correct.id)},
+                {'question_id': str(self.q4.id), 'option_id': str(self.q4_opt_wrong.id)},
+            ]
+        }
+        resp = self.client.post(
+            f"/api/assessments/attempts/{attempt_id}/submit/",
+            data=payload,
+            format='json'
+        )
+
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data['score'], 75)
+        self.assertTrue(resp.data['is_passed'])
+        self.assertEqual(resp.data['correct_answers'], 3)
+        self.assertEqual(resp.data['total_questions'], 4)
+        self.assertIsNotNone(resp.data.get('completed_at'))
+
+        # Verify database record
+        attempt = QuizAttempt.objects.get(id=attempt_id)
+        self.assertEqual(attempt.total_score, 75)
+        self.assertTrue(attempt.is_passed)
+        self.assertIsNotNone(attempt.completed_at)
+        self.assertEqual(StudentAnswer.objects.filter(attempt=attempt).count(), 4)
+
+        # Redis key cleared
+        self.assertIsNone(cache.get(key))
+
+    def test_exact_score_failed_below_threshold(self):
+        """Student with 2/4 correct (50%) fails when passing score is 75% [LMS-QZ-03]."""
+        attempt_id = self._start_attempt()
+        payload = {
+            'answers': [
+                {'question_id': str(self.q1.id), 'option_id': str(self.q1_opt_correct.id)},
+                {'question_id': str(self.q2.id), 'option_id': str(self.q2_opt_correct.id)},
+                {'question_id': str(self.q3.id), 'option_id': str(self.q3_opt_wrong.id)},
+                {'question_id': str(self.q4.id), 'option_id': str(self.q4_opt_wrong.id)},
+            ]
+        }
+        resp = self.client.post(
+            f"/api/assessments/attempts/{attempt_id}/submit/",
+            data=payload,
+            format='json'
+        )
+
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data['score'], 50)
+        self.assertFalse(resp.data['is_passed'])
+
+        attempt = QuizAttempt.objects.get(id=attempt_id)
+        self.assertEqual(attempt.total_score, 50)
+        self.assertFalse(attempt.is_passed)
+        self.assertIsNotNone(attempt.completed_at)
+
+    def test_perfect_score_100_percent(self):
+        """Student answering all questions correctly receives 100% [LMS-QZ-03]."""
+        attempt_id = self._start_attempt()
+        payload = {
+            'answers': [
+                {'question_id': str(self.q1.id), 'option_id': str(self.q1_opt_correct.id)},
+                {'question_id': str(self.q2.id), 'option_id': str(self.q2_opt_correct.id)},
+                {'question_id': str(self.q3.id), 'option_id': str(self.q3_opt_correct.id)},
+                {'question_id': str(self.q4.id), 'option_id': str(self.q4_opt_correct.id)},
+            ]
+        }
+        resp = self.client.post(
+            f"/api/assessments/attempts/{attempt_id}/submit/",
+            data=payload,
+            format='json'
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data['score'], 100)
+        self.assertTrue(resp.data['is_passed'])
+
+    def test_zero_score_all_wrong(self):
+        """Student answering all questions incorrectly receives 0% [LMS-QZ-03]."""
+        attempt_id = self._start_attempt()
+        payload = {
+            'answers': [
+                {'question_id': str(self.q1.id), 'option_id': str(self.q1_opt_wrong.id)},
+                {'question_id': str(self.q2.id), 'option_id': str(self.q2_opt_wrong.id)},
+                {'question_id': str(self.q3.id), 'option_id': str(self.q3_opt_wrong.id)},
+                {'question_id': str(self.q4.id), 'option_id': str(self.q4_opt_wrong.id)},
+            ]
+        }
+        resp = self.client.post(
+            f"/api/assessments/attempts/{attempt_id}/submit/",
+            data=payload,
+            format='json'
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data['score'], 0)
+        self.assertFalse(resp.data['is_passed'])
+
+    def test_atomic_rollback_on_insertion_error(self):
+        """
+        Database error during question answer insertion rolls back all writes [LMS-QZ-03].
+        No partial answers remain saved and attempt is not marked completed.
+        """
+        attempt_id = self._start_attempt()
+        key = get_session_key(attempt_id)
+
+        original_create = StudentAnswer.objects.create
+        call_count = [0]
+
+        def fail_on_second(*args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] == 2:
+                raise IntegrityError("Simulated database failure on question 2 insertion")
+            return original_create(*args, **kwargs)
+
+        payload = {
+            'answers': [
+                {'question_id': str(self.q1.id), 'option_id': str(self.q1_opt_correct.id)},
+                {'question_id': str(self.q2.id), 'option_id': str(self.q2_opt_correct.id)},
+            ]
+        }
+
+        with patch.object(StudentAnswer.objects, 'create', side_effect=fail_on_second):
+            resp = self.client.post(
+                f"/api/assessments/attempts/{attempt_id}/submit/",
+                data=payload,
+                format='json'
+            )
+
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('Submission failed', resp.data['error'])
+
+        # Verify atomic rollback: 0 StudentAnswer rows saved
+        self.assertEqual(StudentAnswer.objects.filter(attempt_id=attempt_id).count(), 0)
+
+        # Attempt must remain unsubmitted and unscored
+        attempt = QuizAttempt.objects.get(id=attempt_id)
+        self.assertIsNone(attempt.completed_at)
+        self.assertEqual(attempt.total_score, 0)
+        self.assertFalse(attempt.is_passed)
+
+        # Redis session key must not have been purged
+        self.assertIsNotNone(cache.get(key))
+
+    def test_atomic_rollback_on_foreign_question(self):
+        """Submitting a question belonging to another quiz rolls back transaction [LMS-QZ-03]."""
+        attempt_id = self._start_attempt()
+
+        # Create another quiz with a question
+        other_lesson = Lesson.objects.create(
+            module=self.module,
+            title='Another Protocol Lesson',
+            order=2
+        )
+        other_quiz = Quiz.objects.create(
+            lesson=other_lesson,
+            title='Other Quiz',
+            passing_score=50,
+            time_limit_minutes=15
+        )
+        foreign_q = Question.objects.create(
+            quiz=other_quiz,
+            question_text='Foreign question?',
+            points=1
+        )
+        foreign_opt = Option.objects.create(
+            question=foreign_q,
+            option_text='Foreign Option',
+            is_correct=True
+        )
+
+        payload = {
+            'answers': [
+                {'question_id': str(self.q1.id), 'option_id': str(self.q1_opt_correct.id)},
+                {'question_id': str(foreign_q.id), 'option_id': str(foreign_opt.id)},
+            ]
+        }
+        resp = self.client.post(
+            f"/api/assessments/attempts/{attempt_id}/submit/",
+            data=payload,
+            format='json'
+        )
+
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('does not belong to this quiz', resp.data['error'])
+
+        # Verify rollback: 0 StudentAnswer rows saved
+        self.assertEqual(StudentAnswer.objects.filter(attempt_id=attempt_id).count(), 0)
+        attempt = QuizAttempt.objects.get(id=attempt_id)
+        self.assertIsNone(attempt.completed_at)
+
+    def test_atomic_rollback_on_invalid_option_for_question(self):
+        """Submitting an option that belongs to a different question rolls back [LMS-QZ-03]."""
+        attempt_id = self._start_attempt()
+        payload = {
+            'answers': [
+                {'question_id': str(self.q1.id), 'option_id': str(self.q1_opt_correct.id)},
+                # Pairing q2 with q1's option
+                {'question_id': str(self.q2.id), 'option_id': str(self.q1_opt_correct.id)},
+            ]
+        }
+        resp = self.client.post(
+            f"/api/assessments/attempts/{attempt_id}/submit/",
+            data=payload,
+            format='json'
+        )
+
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('does not belong to question', resp.data['error'])
+
+        self.assertEqual(StudentAnswer.objects.filter(attempt_id=attempt_id).count(), 0)
+        attempt = QuizAttempt.objects.get(id=attempt_id)
+        self.assertIsNone(attempt.completed_at)
+
+    def test_atomic_rollback_on_duplicate_question_answer(self):
+        """Submitting duplicate answers for the same question rolls back [LMS-QZ-03]."""
+        attempt_id = self._start_attempt()
+        payload = {
+            'answers': [
+                {'question_id': str(self.q1.id), 'option_id': str(self.q1_opt_correct.id)},
+                {'question_id': str(self.q1.id), 'option_id': str(self.q1_opt_wrong.id)},
+            ]
+        }
+        resp = self.client.post(
+            f"/api/assessments/attempts/{attempt_id}/submit/",
+            data=payload,
+            format='json'
+        )
+
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('Duplicate answer', resp.data['error'])
+
+        self.assertEqual(StudentAnswer.objects.filter(attempt_id=attempt_id).count(), 0)
+
+    def test_cannot_submit_already_submitted_attempt(self):
+        """Attempt already marked completed cannot be re-submitted [LMS-QZ-03]."""
+        attempt_id = self._start_attempt()
+        payload = {
+            'answers': [
+                {'question_id': str(self.q1.id), 'option_id': str(self.q1_opt_correct.id)},
+            ]
+        }
+        # First submission
+        resp1 = self.client.post(
+            f"/api/assessments/attempts/{attempt_id}/submit/",
+            data=payload,
+            format='json'
+        )
+        self.assertEqual(resp1.status_code, status.HTTP_200_OK)
+
+        # Second submission
+        resp2 = self.client.post(
+            f"/api/assessments/attempts/{attempt_id}/submit/",
+            data=payload,
+            format='json'
+        )
+        self.assertEqual(resp2.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(resp2.data['error'], 'Quiz attempt already submitted')
+
+    def test_cannot_submit_other_students_attempt(self):
+        """Student cannot submit an attempt owned by a different student [LMS-QZ-03]."""
+        attempt_id = self._start_attempt(user=self.student)
+
+        self.client.force_authenticate(user=self.other_student)
+        payload = {
+            'answers': [
+                {'question_id': str(self.q1.id), 'option_id': str(self.q1_opt_correct.id)},
+            ]
+        }
+        resp = self.client.post(
+            f"/api/assessments/attempts/{attempt_id}/submit/",
+            data=payload,
+            format='json'
+        )
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_invalid_payload_format(self):
+        """Submitting non-list answers payload returns HTTP 400 [LMS-QZ-03]."""
+        attempt_id = self._start_attempt()
+        resp = self.client.post(
+            f"/api/assessments/attempts/{attempt_id}/submit/",
+            data={'answers': 'invalid-not-a-list'},
+            format='json'
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Invalid payload format", resp.data['error'])
+
+    def test_weighted_points_exact_score_calculation(self):
+        """Questions with different point weights calculate exact percentage [LMS-QZ-03]."""
+        weighted_lesson = Lesson.objects.create(
+            module=self.module,
+            title='Weighted Lesson',
+            order=3
+        )
+        weighted_quiz = Quiz.objects.create(
+            lesson=weighted_lesson,
+            title='Weighted Points Exam',
+            passing_score=75,
+            time_limit_minutes=20
+        )
+        q_1pt = Question.objects.create(
+            quiz=weighted_quiz,
+            question_text='1 pt Question',
+            points=1
+        )
+        q_1pt_correct = Option.objects.create(question=q_1pt, option_text='A', is_correct=True)
+        q_1pt_wrong = Option.objects.create(question=q_1pt, option_text='B', is_correct=False)
+
+        q_3pt = Question.objects.create(
+            quiz=weighted_quiz,
+            question_text='3 pt Question',
+            points=3
+        )
+        q_3pt_correct = Option.objects.create(question=q_3pt, option_text='C', is_correct=True)
+        q_3pt_wrong = Option.objects.create(question=q_3pt, option_text='D', is_correct=False)
+
+        self.client.force_authenticate(user=self.student)
+        start_resp = self.client.post(f"/api/assessments/quizzes/{weighted_quiz.id}/start/")
+        attempt_id = start_resp.data['attempt_id']
+
+        # Answer 3pt question correctly and 1pt question incorrectly: 3/4 = 75%
+        payload = {
+            'answers': [
+                {'question_id': str(q_1pt.id), 'option_id': str(q_1pt_wrong.id)},
+                {'question_id': str(q_3pt.id), 'option_id': str(q_3pt_correct.id)},
+            ]
+        }
+        resp = self.client.post(
+            f"/api/assessments/attempts/{attempt_id}/submit/",
+            data=payload,
+            format='json'
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data['score'], 75)
+        self.assertTrue(resp.data['is_passed'])
+        self.assertEqual(resp.data['correct_answers'], 1)
+        self.assertEqual(resp.data['total_questions'], 2)
+

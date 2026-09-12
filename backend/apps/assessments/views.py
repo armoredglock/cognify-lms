@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import status
@@ -112,12 +113,20 @@ def submit_quiz(request, attempt_id):
     Submissions after Redis TTL expiry are automatically rejected [LMS-QZ-02].
     """
     try:
-        attempt = QuizAttempt.objects.get(id=attempt_id, student=request.user)
+        attempt = QuizAttempt.objects.select_related('quiz').get(
+            id=attempt_id, student=request.user
+        )
     except QuizAttempt.DoesNotExist:
-        return Response({'error': 'Quiz attempt not found'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(
+            {'error': 'Quiz attempt not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
 
     if attempt.completed_at is not None:
-        return Response({'error': 'Quiz attempt already submitted'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {'error': 'Quiz attempt already submitted'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
     # Verify Redis TTL has not expired [LMS-QZ-02]
     active, remaining_seconds = is_session_active(attempt_id)
@@ -128,35 +137,83 @@ def submit_quiz(request, attempt_id):
         )
 
     answers_data = request.data.get('answers', [])
+    if not isinstance(answers_data, list):
+        return Response(
+            {'error': "Invalid payload format. 'answers' must be a list."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
-    with transaction.atomic():
-        correct_count = 0
-        total_questions = attempt.quiz.questions.count()
+    quiz_questions = {str(q.id): q for q in attempt.quiz.questions.all()}
+    total_questions = len(quiz_questions)
+    total_points = sum(q.points for q in quiz_questions.values())
 
-        for ans in answers_data:
-            question_id = ans.get('question_id')
-            option_id = ans.get('option_id')
-            try:
-                selected_opt = Option.objects.get(id=option_id, question_id=question_id)
+    try:
+        with transaction.atomic():
+            correct_count = 0
+            earned_points = 0
+            seen_questions = set()
+
+            for ans in answers_data:
+                question_id = str(ans.get('question_id', ''))
+                option_id = str(ans.get('option_id', ''))
+
+                if question_id not in quiz_questions:
+                    raise ValidationError(
+                        f"Question {question_id} does not belong to this quiz."
+                    )
+
+                if question_id in seen_questions:
+                    raise ValidationError(
+                        f"Duplicate answer submitted for question {question_id}."
+                    )
+                seen_questions.add(question_id)
+
+                try:
+                    selected_opt = Option.objects.get(
+                        id=option_id,
+                        question_id=question_id
+                    )
+                except Option.DoesNotExist:
+                    raise ValidationError(
+                        f"Option {option_id} does not belong to question {question_id}."
+                    )
+
                 StudentAnswer.objects.create(
                     attempt=attempt,
                     question_id=question_id,
                     selected_option=selected_opt
                 )
+
                 if selected_opt.is_correct:
                     correct_count += 1
-            except Option.DoesNotExist:
-                continue
+                    earned_points += quiz_questions[question_id].points
 
-        score_percent = int((correct_count / total_questions * 100)) if total_questions > 0 else 0
-        is_passed = score_percent >= attempt.quiz.passing_score
+            if total_points > 0:
+                score_percent = int(round((earned_points / total_points) * 100))
+            elif total_questions > 0:
+                score_percent = int(round((correct_count / total_questions) * 100))
+            else:
+                score_percent = 0
 
-        attempt.total_score = score_percent
-        attempt.is_passed = is_passed
-        attempt.completed_at = timezone.now()
-        attempt.save()
+            is_passed = score_percent >= attempt.quiz.passing_score
 
-    # Clear active session key from Redis
+            attempt.total_score = score_percent
+            attempt.is_passed = is_passed
+            attempt.completed_at = timezone.now()
+            attempt.save()
+
+    except ValidationError as err:
+        return Response(
+            {'error': str(err.message if hasattr(err, 'message') else err)},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    except Exception as exc:
+        return Response(
+            {'error': f'Submission failed: {str(exc)}'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # Clear active session key from Redis upon successful atomic commit
     clear_quiz_session(attempt_id)
 
     return Response({
@@ -165,4 +222,5 @@ def submit_quiz(request, attempt_id):
         'is_passed': is_passed,
         'correct_answers': correct_count,
         'total_questions': total_questions,
+        'completed_at': attempt.completed_at.isoformat(),
     })
