@@ -1,5 +1,7 @@
 import json
 import logging
+import os
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +13,53 @@ def generate_assessment_from_transcript(transcript_text, topic="Database Systems
     if not transcript_text:
         transcript_text = "Relational database management systems rely on ACID properties: Atomicity, Consistency, Isolation, and Durability."
 
-    # Return structured JSON payload
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if api_key:
+        try:
+            prompt = f"""
+You are an expert AI tutor. Given the following lecture transcript on {topic}, generate a study summary, a quiz with multiple choice questions, and flashcards.
+Output strictly as a JSON object matching this schema:
+{{
+  "summary": "String summarizing the key points.",
+  "quiz": [
+    {{
+      "question": "String",
+      "options": [
+        {{"text": "String", "is_correct": true}}
+      ]
+    }}
+  ],
+  "flashcards": [
+    {{
+      "front": "String",
+      "back": "String"
+    }}
+  ]
+}}
+
+Transcript:
+{transcript_text}
+"""
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+            payload = {
+                "contents": [{
+                    "parts": [{"text": prompt}]
+                }],
+                "generationConfig": {
+                    "response_mime_type": "application/json"
+                }
+            }
+            response = requests.post(url, json=payload, timeout=15)
+            response.raise_for_status()
+            data = response.json()
+            
+            text_content = data["candidates"][0]["content"]["parts"][0]["text"]
+            return json.loads(text_content)
+        except Exception as e:
+            logger.error(f"AI Generation failed: {e}")
+            # Fall through to fallback
+
+    # Return structured JSON payload (fallback)
     return {
         "summary": f"Key study points on {topic} derived from transcript: Emphasizes schema normalization, relational algebra, and ACID transaction semantics.",
         "quiz": [
