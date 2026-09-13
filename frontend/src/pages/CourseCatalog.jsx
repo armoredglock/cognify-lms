@@ -1,6 +1,6 @@
 import React, { useState, useContext } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 const CourseCatalog = () => {
     const [activeTab, setActiveTab] = useState('courses');
@@ -57,15 +57,21 @@ const CourseCatalog = () => {
                             <h2 style={{ marginTop: 0 }}>📚 Course Catalog [P1 - Saanvi Singhal]</h2>
                             <p style={{ color: '#64748b' }}>Relational course, module, and lesson structure backed by PostgreSQL 3NF schema.</p>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem', marginTop: '1.5rem' }}>
-                                <div style={{ border: '1px solid #e2e8f0', borderRadius: '0.5rem', padding: '1rem' }}>
+                                <div style={{ border: '1px solid #e2e8f0', borderRadius: '0.5rem', padding: '1rem', display: 'flex', flexDirection: 'column' }}>
                                     <h3 style={{ margin: '0 0 0.5rem 0' }}>Database Systems (DBMS)</h3>
-                                    <p style={{ fontSize: '0.9rem', color: '#64748b' }}>Learn Relational Algebra, Normalization (1NF-BCNF), Indexing, and ACID Transactions.</p>
-                                    <span style={{ display: 'inline-block', backgroundColor: '#e0f2fe', color: '#0369a1', fontSize: '0.75rem', padding: '0.2rem 0.6rem', borderRadius: '1rem', fontWeight: 600 }}>Core CS</span>
+                                    <p style={{ fontSize: '0.9rem', color: '#64748b', flex: 1 }}>Learn Relational Algebra, Normalization (1NF-BCNF), Indexing, and ACID Transactions.</p>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
+                                        <span style={{ display: 'inline-block', backgroundColor: '#e0f2fe', color: '#0369a1', fontSize: '0.75rem', padding: '0.2rem 0.6rem', borderRadius: '1rem', fontWeight: 600 }}>Core CS</span>
+                                        <Link to="/lesson/1" style={{ backgroundColor: '#10b981', color: '#fff', padding: '0.5rem 1rem', borderRadius: '0.375rem', textDecoration: 'none', fontWeight: 600, fontSize: '0.9rem' }}>Start Learning</Link>
+                                    </div>
                                 </div>
-                                <div style={{ border: '1px solid #e2e8f0', borderRadius: '0.5rem', padding: '1rem' }}>
+                                <div style={{ border: '1px solid #e2e8f0', borderRadius: '0.5rem', padding: '1rem', display: 'flex', flexDirection: 'column' }}>
                                     <h3 style={{ margin: '0 0 0.5rem 0' }}>In-Memory Systems & Caching</h3>
-                                    <p style={{ fontSize: '0.9rem', color: '#64748b' }}>Master Redis data structures: Hashes, TTLs, and Sorted Sets for high-throughput scaling.</p>
-                                    <span style={{ display: 'inline-block', backgroundColor: '#fef3c7', color: '#b45309', fontSize: '0.75rem', padding: '0.2rem 0.6rem', borderRadius: '1rem', fontWeight: 600 }}>Advanced Systems</span>
+                                    <p style={{ fontSize: '0.9rem', color: '#64748b', flex: 1 }}>Master Redis data structures: Hashes, TTLs, and Sorted Sets for high-throughput scaling.</p>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
+                                        <span style={{ display: 'inline-block', backgroundColor: '#fef3c7', color: '#b45309', fontSize: '0.75rem', padding: '0.2rem 0.6rem', borderRadius: '1rem', fontWeight: 600 }}>Advanced Systems</span>
+                                        <Link to="/lesson/2" style={{ backgroundColor: '#10b981', color: '#fff', padding: '0.5rem 1rem', borderRadius: '0.375rem', textDecoration: 'none', fontWeight: 600, fontSize: '0.9rem' }}>Start Learning</Link>
+                                    </div>
                                 </div>
                             </div>
                         </div>

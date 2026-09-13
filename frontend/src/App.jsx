@@ -5,6 +5,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import CourseCatalog from './pages/CourseCatalog';
+import StudentDashboard from './pages/StudentDashboard';
 
 function App() {
     return (
@@ -19,6 +20,14 @@ function App() {
                             element={
                                 <ProtectedRoute>
                                     <CourseCatalog />
+                                </ProtectedRoute>
+                            } 
+                        />
+                        <Route 
+                            path="/lesson/:lessonId" 
+                            element={
+                                <ProtectedRoute>
+                                    <StudentDashboard />
                                 </ProtectedRoute>
                             } 
                         />
