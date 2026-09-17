@@ -1,0 +1,38 @@
+name: "Branch Guard"
+
+on:
+  pull_request_target:
+    types: [opened, edited]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  check-target-branch:
+    name: "Enforce Base Branch Policy"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify PR Target Branch
+        if: github.base_ref == 'main' && github.actor != 'armoredglock' && github.actor != 'BibekTripathy'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const commentBody = `### ⚠️ Target Branch Notice
+            
+            Thank you for your contribution, @${context.actor}!
+            
+            As per our [Contributing Guidelines](https://github.com/armoredglock/cognify-lms/blob/dev/CONTRIBUTING.md):
+            - All feature PRs, bug fixes, and development work must target the **\`dev\`** branch.
+            - The **\`main\`** branch is reserved exclusively for stable v1.0+ release milestones managed by Code Owners (@armoredglock & @BibekTripathy).
+            
+            👉 **Please change the base branch of this PR to \`dev\`** (You can do this by clicking the "Edit" button next to the PR title).`;
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: commentBody
+            });
+            
+            core.setFailed("PRs must target the 'dev' branch, not 'main'.");

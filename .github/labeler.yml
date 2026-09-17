@@ -1,0 +1,37 @@
+# Configuration for actions/labeler
+backend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'backend/**'
+
+frontend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'frontend/**'
+
+database:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'backend/**/models.py'
+          - 'backend/**/models/**'
+          - 'backend/**/migrations/**'
+
+ai-engine:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'backend/**/ai/**'
+          - 'backend/**/services/ai/**'
+          - 'backend/**/services/llm/**'
+          - 'backend/**/ai_*.py'
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'docs/**'
+          - '*.md'
+          - 'LICENSE'
+
+ci-cd:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/**'
