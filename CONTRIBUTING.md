@@ -27,10 +27,16 @@ We are committed to providing a friendly, safe, and welcoming environment for al
 
 ---
 
-## 👥 Team & Domain Leads
+## 👥 Repository Maintainers & Codeowners
 
-If your contribution relates to a specific functional domain, consider tagging the respective module owner on your issue or pull request:
+The repository is governed by the designated **Codeowners**:
+- **[Sagnik Datta](https://github.com/armoredglock)** (`@armoredglock`)
+- **[Bibek Tripathy](https://github.com/BibekTripathy)** (`@BibekTripathy`)
 
+All Pull Requests require review and sign-off from the Codeowners before merging.
+
+### Module Leads
+For domain-specific questions or discussions, tag the corresponding module lead:
 - **Core Architecture, RBAC & Course Models**: [@saanvi-singhal](https://github.com/saanvi-singhal) (Team Lead)
 - **Video Analytics & Telemetry**: [@BibekTripathy](https://github.com/BibekTripathy)
 - **Assessment Engine & Timed Sessions**: [@swatisaumya](https://github.com/swatisaumya)
@@ -41,19 +47,23 @@ If your contribution relates to a specific functional domain, consider tagging t
 
 ## 🌿 Git Workflow & Branching Strategy
 
-We follow a feature-branch workflow. All feature development and bug fixes should originate from isolated branches.
+We follow an active development workflow centered on the **`dev`** branch.
+
+> [!IMPORTANT]
+> **All team member PRs must target the `dev` branch.**  
+> The `main` branch is strictly reserved for stable releases. When **Version 1.0** of Cognify LMS is fully tested and ready, the Codeowners (@armoredglock and @BibekTripathy) will merge `dev` into `main`.
 
 ### Branch Naming Scheme
-- **Features**: `feat/<short-description>` or `feature/<module>-<description>` (e.g., `feat/video-tracking-api`, `feat/quiz-timer`)
+- **Features**: `feat/<short-description>` or `feat/<module>-<description>` (e.g., `feat/video-tracking-api`, `feat/quiz-timer`)
 - **Bug Fixes**: `fix/<issue-description>` (e.g., `fix/enrollment-constraint-bug`)
 - **Documentation**: `docs/<topic>` (e.g., `docs/api-endpoints`)
 - **Refactoring & Performance**: `refactor/<module>` or `perf/<target>`
 
 ### Step-by-Step Flow:
-1. Fetch and pull the latest changes from `main`:
+1. Fetch and pull the latest changes from `dev`:
    ```bash
-   git checkout main
-   git pull origin main
+   git checkout dev
+   git pull origin dev
    ```
 2. Create and switch to your feature branch:
    ```bash
@@ -64,7 +74,7 @@ We follow a feature-branch workflow. All feature development and bug fixes shoul
    ```bash
    git push origin feat/your-feature-name
    ```
-5. Open a Pull Request on GitHub against the `main` branch.
+5. Open a Pull Request on GitHub with the base branch set to **`dev`** (NOT `main`).
 
 ---
 
@@ -122,11 +132,12 @@ We adhere to [Conventional Commits](https://www.conventionalcommits.org/). Each 
 
 ## 🚀 Pull Request Process
 
-1. **Self-Review**: Run local linting, migrations, and test suites to verify that nothing is broken.
-2. **PR Title**: Ensure the PR title follows conventional commit formatting.
-3. **PR Description**: Describe what was changed, why the change was made, and how reviewers can test it. Include relevant issue numbers (`Fixes #12`).
-4. **Code Review**: At least one core team member review is required before merging.
-5. **Merge**: Once approved, PRs will be squash-merged into `main` to preserve a clean commit history.
+1. **Target Branch**: Ensure the base branch for your PR is set to **`dev`** (do not target `main`).
+2. **Self-Review**: Run local linting, migrations, and test suites to verify that nothing is broken.
+3. **PR Title**: Ensure the PR title follows conventional commit formatting (e.g. `feat(video): add progress sync`).
+4. **PR Description**: Describe what was changed, why the change was made, and how reviewers can test it. Include relevant issue numbers (`Fixes #12`).
+5. **Code Review**: At least one Codeowner review ([@armoredglock](https://github.com/armoredglock) or [@BibekTripathy](https://github.com/BibekTripathy)) is required before merging.
+6. **Merge**: Once approved, PRs will be squash-merged into **`dev`** to preserve a clean commit history. Release candidates will be merged from `dev` into `main` upon Version 1 completion.
 
 ---
 

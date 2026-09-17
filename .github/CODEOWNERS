@@ -1,0 +1,19 @@
+# ==============================================================================
+# CODEOWNERS for Cognify LMS
+# ==============================================================================
+# These repository maintainers are the designated code owners and will be
+# automatically requested for review whenever pull requests are opened or modified.
+# Approvals from the code owners are required before merging into 'dev' and 'main'.
+
+# Global Codeowners:
+* @armoredglock @BibekTripathy
+
+# Backend & Core Infrastructure
+/backend/ @armoredglock @BibekTripathy
+
+# Frontend UI & Integration
+/frontend/ @armoredglock @BibekTripathy
+
+# Documentation & GitHub Workflows
+/.github/ @armoredglock @BibekTripathy
+/docs/ @armoredglock @BibekTripathy
