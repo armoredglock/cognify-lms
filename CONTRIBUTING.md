@@ -27,16 +27,10 @@ We are committed to providing a friendly, safe, and welcoming environment for al
 
 ---
 
-## 👥 Repository Maintainers & Codeowners
+## 👥 Team & Domain Leads
 
-The repository is governed by the designated **Codeowners**:
-- **[Sagnik Datta](https://github.com/armoredglock)** (`@armoredglock`)
-- **[Bibek Tripathy](https://github.com/BibekTripathy)** (`@BibekTripathy`)
+If your contribution relates to a specific functional domain, consider tagging the respective module owner on your issue or pull request:
 
-All Pull Requests require review and sign-off from the Codeowners before merging.
-
-### Module Leads
-For domain-specific questions or discussions, tag the corresponding module lead:
 - **Core Architecture, RBAC & Course Models**: [@saanvi-singhal](https://github.com/saanvi-singhal) (Team Lead)
 - **Video Analytics & Telemetry**: [@BibekTripathy](https://github.com/BibekTripathy)
 - **Assessment Engine & Timed Sessions**: [@swatisaumya](https://github.com/swatisaumya)
@@ -47,20 +41,26 @@ For domain-specific questions or discussions, tag the corresponding module lead:
 
 ## 🌿 Git Workflow & Branching Strategy
 
-We follow an active development workflow centered on the **`dev`** branch.
+We follow a strict multi-branch workflow to ensure code quality and release stability.
 
-> [!IMPORTANT]
-> **All team member PRs must target the `dev` branch.**  
-> The `main` branch is strictly reserved for stable releases. When **Version 1.0** of Cognify LMS is fully tested and ready, the Codeowners (@armoredglock and @BibekTripathy) will merge `dev` into `main`.
+### Core Branches:
+- **`dev` (Active Development Branch)**:
+  - **All contributors submit their Pull Requests against `dev`**.
+  - All feature branches (`feat/*`), bug fixes (`fix/*`), and chore branches must target `dev`.
+  - Continuous integration and team testing occur on this branch.
+- **`main` (Production & Release Branch)**:
+  - Reserved exclusively for production-ready, stable releases (Version 1.0+).
+  - **Restricted Access**: Direct pushes to `main` are disabled. **No one merges to `main` except the Code Owners ([@armoredglock](https://github.com/armoredglock) and [@BibekTripathy](https://github.com/BibekTripathy))**.
+  - Once Version 1.0 of the application is tested and verified on `dev`, the Code Owners will merge `dev` into `main`.
 
-### Branch Naming Scheme
-- **Features**: `feat/<short-description>` or `feat/<module>-<description>` (e.g., `feat/video-tracking-api`, `feat/quiz-timer`)
+### Branch Naming Scheme:
+- **Features**: `feat/<short-description>` or `feature/<module>-<description>` (e.g., `feat/video-tracking-api`, `feat/quiz-timer`)
 - **Bug Fixes**: `fix/<issue-description>` (e.g., `fix/enrollment-constraint-bug`)
 - **Documentation**: `docs/<topic>` (e.g., `docs/api-endpoints`)
 - **Refactoring & Performance**: `refactor/<module>` or `perf/<target>`
 
 ### Step-by-Step Flow:
-1. Fetch and pull the latest changes from `dev`:
+1. Fetch and pull the latest changes from the `dev` branch:
    ```bash
    git checkout dev
    git pull origin dev
@@ -69,12 +69,12 @@ We follow an active development workflow centered on the **`dev`** branch.
    ```bash
    git checkout -b feat/your-feature-name
    ```
-3. Commit your changes logically adhering to our commit conventions.
+3. Make and commit your changes logically adhering to our commit conventions.
 4. Push your branch to GitHub:
    ```bash
    git push origin feat/your-feature-name
    ```
-5. Open a Pull Request on GitHub with the base branch set to **`dev`** (NOT `main`).
+5. Open a Pull Request on GitHub targeting **`base: dev`** (⚠️ **DO NOT target `main`**).
 
 ---
 
@@ -132,12 +132,12 @@ We adhere to [Conventional Commits](https://www.conventionalcommits.org/). Each 
 
 ## 🚀 Pull Request Process
 
-1. **Target Branch**: Ensure the base branch for your PR is set to **`dev`** (do not target `main`).
+1. **Target Branch**: Ensure your Pull Request's base branch is set to **`dev`** (NOT `main`).
 2. **Self-Review**: Run local linting, migrations, and test suites to verify that nothing is broken.
-3. **PR Title**: Ensure the PR title follows conventional commit formatting (e.g. `feat(video): add progress sync`).
+3. **PR Title**: Ensure the PR title follows conventional commit formatting (e.g., `feat(video): add playback sync endpoint`).
 4. **PR Description**: Describe what was changed, why the change was made, and how reviewers can test it. Include relevant issue numbers (`Fixes #12`).
-5. **Code Review**: At least one Codeowner review ([@armoredglock](https://github.com/armoredglock) or [@BibekTripathy](https://github.com/BibekTripathy)) is required before merging.
-6. **Merge**: Once approved, PRs will be squash-merged into **`dev`** to preserve a clean commit history. Release candidates will be merged from `dev` into `main` upon Version 1 completion.
+5. **Code Review & CODEOWNERS**: PRs require review and approval from Code Owners ([@armoredglock](https://github.com/armoredglock) or [@BibekTripathy](https://github.com/BibekTripathy)) before merging into `dev`.
+6. **Merge**: Once approved, PRs will be squash-merged into `dev` to preserve a clean commit history. Only Code Owners will merge `dev` into `main` for release milestones.
 
 ---
 

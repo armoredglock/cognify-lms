@@ -137,10 +137,16 @@ flowchart TD
 | Member | Role / Task Section | Primary Scope & DBMS Focus |
 | :--- | :--- | :--- |
 | **[Saanvi Singhal](https://github.com/saanvi-singhal)**<br>*(Team Lead)* | **Core Architecture, RBAC & Course Management** | Django core initialization, Custom User model (`Student`/`Instructor`/`Admin`), Course/Module/Lesson relational schema, Enrollment constraints, and Auth APIs. |
-| **[Bibek Tripathy](https://github.com/BibekTripathy)** | **Video Analytics & Playback Tracking** | Video progress schema, client-side debounced playback position syncing directly to PostgreSQL, playback resumption logic, and aggregate watch-time metrics. |
+| **[Bibek Tripathy](https://github.com/BibekTripathy)**<br>*(Code Owner)* | **Video Analytics & Playback Tracking** | Video progress schema, client-side debounced playback position syncing directly to PostgreSQL, playback resumption logic, and aggregate watch-time metrics. |
 | **[Swati Saumya](https://github.com/swatisaumya)** | **Assessment Engine & Timed Exam Session Manager** | Quiz, Question, and Attempt schema; ACID transaction management for attempt submissions; server-side database timestamp validation for timed exam sessions. |
 | **[Meheli Ghosh](https://github.com/MEHELIGHOSH)** | **Gamification, Leaderboard & Certification** | Real-time leaderboard computations via PostgreSQL Window Functions (`RANK()` / `DENSE_RANK()`), indexed SQL aggregation views for student grading, and Certificate verification schema. |
-| **[Sagnik Datta](https://github.com/armoredglock)** | **AI Assessment Generator & Frontend UI Integration** | Data model for AI-generated artifacts (quizzes, flashcards, summaries), LLM pipeline (Gemini/OpenAI/mock fallback), and React dashboard/quiz integration. |
+| **[Sagnik Datta](https://github.com/armoredglock)**<br>*(Code Owner)* | **AI Assessment Generator & Frontend UI Integration** | Data model for AI-generated artifacts (quizzes, flashcards, summaries), LLM pipeline (Gemini/OpenAI/mock fallback), and React dashboard/quiz integration. |
+
+> [!IMPORTANT]
+> **Branching & Code Governance**:
+> - **Active Development**: All contributors submit Pull Requests to the **`dev`** branch.
+> - **Main Branch Protection**: The **`main`** branch is protected and reserved exclusively for stable releases (Version 1.0+).
+> - **Merge Authority**: Only the Code Owners (**[@armoredglock](https://github.com/armoredglock)** & **[@BibekTripathy](https://github.com/BibekTripathy)**) have merge and push privileges to `main`.
 
 ---
 
